@@ -18,8 +18,8 @@ camWidth = 640
 camHeight = 480
 halfScreen = camWidth/2;
 
-foundFace = False;
-targetConfirmed = False;
+# foundFace = False;
+# targetConfirmed = False;
 launchConfirmed = False;
 
 #Set up confirm button
@@ -67,13 +67,14 @@ def aimToFace():
         		#Click servo left
         		print "Pan Left"
         	else:
-        		isConfirmed = confirmLaunch()
-        		if isConfirmed:
-        			prepareToLaunch(distance)
+        		targetConfirmed = confirmTarget()
+        		if targetConfirmed:
+        			Launch(distance)
         		else:
         			break;
+    return
 
-def confirmLaunch():
+def confirmTarget():
 	GPIO.wait_for_edge(yesButton, GPIO.FALLING)
 	GPIO.wait_for_edge(noButton, GPIO.FALLING)
 	while 1:
@@ -83,7 +84,7 @@ def confirmLaunch():
 		elif GPIO.event_detected(noButton):
 			return False
 		
-def prepareToLaunch(distance):
+def Launch(distance):
 	#Calculate the require launch angle and initial velocity
 
 	#Aim the Barrel
@@ -92,7 +93,28 @@ def prepareToLaunch(distance):
 
 	#Spin up the wheels
 
-	#
+	#Get one last confirmation
+	GPIO.wait_for_edge(yesButton, GPIO.FALLING)
+	GPIO.wait_for_edge(noButton, GPIO.FALLING)
+	while 1:
+		#Confirm with button press that this is the intended target (use a toggle switch possibly)
+		if GPIO.event_detected(yesButton):
+			launchConfirmed = True;
+			break
+		elif GPIO.event_detected(noButton):
+			break
+	if not launchConfirmed:
+		return
+
+	#Upon confirmation, spin the loading servo
+
+	#sleep for 3 seconds to let loading servo run
+
+	#stop loading servo
+
+	#stop the launching motors ASAP
+
+	#lower barrel to starting position
 
 # while 1:
 #         # get a frame from RGB camera
