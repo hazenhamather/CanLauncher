@@ -5,12 +5,16 @@ import cv2
 import time
 import math
 import Adafruit_BBIO.GPIO as GPIO
+import Adafruit_BBIO.PWM as PWM
+import os
+
+os.system("config-pin -a P9_14 pwm")
 
 #warmup
 time.sleep(0.5)
 
 # time.sleep(5)
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 faceCascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
 focalLength = 780
 faceWidth = 6.8
@@ -23,10 +27,14 @@ halfScreen = camWidth/2;
 launchConfirmed = False;
 
 #Set up confirm button
-yesButton = "P9_11"
-noButton = "P9_12"
+yesButton = "P9_17"
+noButton = "P9_18"
 GPIO.setup(yesButton, GPIO.IN)
 GPIO.setup(noButton, GPIO.IN)
+
+def main():
+    aimToFace()
+    #Then some other methods to follow
 
 def scanForFace():
 	while 1:
@@ -36,7 +44,7 @@ def scanForFace():
 		#Turn Servo one click right and start back other way when we max out
 
 		#Do a cap.read() command
-		ret, frame = cap.read();
+		ret, frame = cap.read()
 		gray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
     	faces = faceCascade.detectMultiScale(
         	gray,
@@ -71,8 +79,7 @@ def aimToFace():
         		if targetConfirmed:
         			Launch(distance)
         		else:
-        			break;
-    return
+        			break
 
 def confirmTarget():
 	GPIO.wait_for_edge(yesButton, GPIO.FALLING)
@@ -105,6 +112,8 @@ def Launch(distance):
 			break
 	if not launchConfirmed:
 		return
+
+
 
 	#Upon confirmation, spin the loading servo
 
@@ -139,3 +148,6 @@ def Launch(distance):
 #     if k == 27:
 #         break
 # cv2.destroyAllWindows()
+
+if __name__=="__main__":
+    main()
