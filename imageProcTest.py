@@ -14,8 +14,8 @@ launchReadyPin = "P9_22"
 
 #Button Pins
 startButton = "P9_13"
-confirmButton = "P9_09"
-launchButton = "P9_10"
+confirmButton = "P9_15"
+launchButton = "P9_16"
 
 upPin = "P9_11"
 downPin = "P9_12"
@@ -52,11 +52,14 @@ GPIO.output(upPin, GPIO.HIGH)
 GPIO.output(downPin, GPIO.HIGH)
 
 def main():
+    # cap = cv2.VideoCapture(0)
+    os.system("cd /dev")
+    os.system("v4l2-ctl --set-fmt-video=pixelformat=1")
+    os.system("cd ~/CanLauncher")
+
     os.system("config-pin -a P9_14 pwm")
     os.system("config-pin -a P9_21 pwm")
     os.system("config-pin -a P9_22 pwm")
-
-
 
     GPIO.setup(startButton, GPIO.IN)
     GPIO.setup(confirmButton, GPIO.IN)
@@ -68,16 +71,19 @@ def main():
 
 def boom():
     while 1:
+        cap = cv2.VideoCapture(0)
+        print "Awaiting start signal"
         GPIO.wait_for_edge(startButton, GPIO.RISING)
-        time.sleep(0.005)
-        faces = scanForFace()
-        distanceToTarget = getDistanceToFace(faces)
+        distanceToTarget = scanForFace(cap)
+        # distanceToTarget = 50
+        # distanceToTarget = getDistanceToFace(faces)
         rightTarget = confirmTarget()
         if rightTarget:
             angleD = getLaunchAngle(distanceToTarget)
             aim(angleD)
             clearedForLaunch = confirmLaunch()
             launchBaby()
+            resetAngle()
     # while 1:
     #         # get a frame from RGB camera
     #     ret, frame = cap.read()
@@ -104,22 +110,25 @@ def boom():
     #         break
     # cv2.destroyAllWindows()
 
-def scanForFace():
+def scanForFace(cap):
     while 1:
-        cap = cv2.VideoCapture(0)
-        time.sleep(0.01)
         faceCascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
         ret, frame = cap.read()
+        # cap.release()
+        # time.sleep(0.01)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = faceCascade.detectMultiScale(
             gray,
             scaleFactor=1.3,
             minNeighbors=5
         )
-        for (x, y, w, h) in faces:
-            cv2.destroyAllWindows()
-            return faces
-        break
+        print faces
+        if len(faces) > 0:
+            for (x, y, w, h) in faces:
+                cv2.destroyAllWindows()
+                cap.release()
+                return 146.645*math.exp(-7.207e-3*w)
+            break
 
 def getDistanceToFace(faces):
     # focalLength = 780
@@ -131,36 +140,49 @@ def getDistanceToFace(faces):
         return 146.645*math.exp(-7.207e-3*w)
 
 def confirmTarget():
-    PWM.start(targetFoundPin,50,1)
+    # PWM.start(targetFoundPin,50,1)
+    print "Entered confirm target method"
+    # GPIO.add_event_detect(confirmButton, GPIO.RISING)
+    # GPIO.add_event_detect(launchButton, GPIO.RISING)
     while 1:
-        time.sleep(0.001)
-        if GPIO.input(confirmButton):
-            PWM.stop(targetFoundPin)
-            return True
-        elif GPIO.input(launchButton):
-            PWM.stop(targetFoundPin)
-            return False
+        return True
+        # if not GPIO.input(confirmButton):
+        # if GPIO.event_detected(confirmButton):
+            # PWM.stop(targetFoundPin)
+            # return True
+        # elif GPIO.input(launchButton):
+            # PWM.stop(targetFoundPin)
+            # return False
+        # if GPIO.input(confirmButton):
+        #     PWM.stop(targetFoundPin)
+        #     return TrueGPIO.event_detected
+        # elif GPIO.input(launchButton):
+        #     PWM.stop(targetFoundPin)
+        #     return False
 
 def confirmLaunch():
-    PWM.start(targetFoundPin, 50, 1)
-    PWM.start(launchReadyPin, 50, 1)
+    # PWM.start(targetFoundPin, 50, 1)
+    # PWM.start(launchReadyPin, 50, 1)
+    print "Awaiting Launch confirmation"
     while 1:
-        time.sleep(0.001)
-        if GPIO.input(launchButton):
-            PWM.stop(targetFoundPin)
-            PWM.stop(launchReadyPin)
+        # if not GPIO.input(launchButton):
+            # PWM.stop(targetFoundPin)
+            # PWM.stop(launchReadyPin)
             return True
-        elif GPIO.input(confirmButton):
-            PWM.stop(targetFoundPin)
-            PWM.stop(launchReadyPin)
-            return False
+        # elif GPIO.input(confirmButton):
+            # PWM.stop(targetFoundPin)
+            # PWM.stop(launchReadyPin)
+            # return False
 
 def launchBaby():
     pass
 
 def getLaunchAngle(distance):
     #Kuza will give me the equation
-    pass
+    return 45
+
+def resetAngle():
+    aim(30)
 
 def aim(targetAngle):
     c = getActuatorLength()
@@ -177,10 +199,10 @@ def aimUp(desiredAngle):
     keepAiming = True
     GPIO.output(upPin, GPIO.LOW)
     while keepAiming:
-        time.sleep(0.1)
         c = getActuatorLength()
         pos = getXY(c)
         currentAngle = getAngle(pos)
+        time.sleep(.1)
         print currentAngle
         if currentAngle >= topAngle:
             keepAiming = False
@@ -195,10 +217,11 @@ def aimDown(desiredAngle):
     keepAiming = True
     GPIO.output(downPin, GPIO.LOW)
     while keepAiming:
-        time.sleep(0.1)
+        # time.sleep(.100)
         c = getActuatorLength()
         pos = getXY(c)
         currentAngle = getAngle(pos)
+        time.sleep(.1)
         print currentAngle
         if currentAngle <= bottomAngle:
             keepAiming = False
