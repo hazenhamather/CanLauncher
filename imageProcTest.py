@@ -9,13 +9,14 @@ import Adafruit_BBIO.ADC as ADC
 
 #PWM Pins
 motorPin = "P9_14"
+loaderPin = "P8_19"
 targetFoundPin = "P9_21"
 launchReadyPin = "P9_22"
 
 #Button Pins
 startButton = "P9_13"
 confirmButton = "P9_15"
-launchButton = "P9_16"
+# launchButton = "P9_16"
 
 upPin = "P9_11"
 downPin = "P9_12"
@@ -54,7 +55,7 @@ GPIO.output(downPin, GPIO.HIGH)
 def main():
     # cap = cv2.VideoCapture(0)
     os.system("cd /dev")
-    os.system("v4l2-ctl --set-fmt-video=pixelformat=1")
+    os.system("v4l2-ctl --set-fmt-video=width=1920,height=1080,pixelformat=1")
     os.system("cd ~/CanLauncher")
 
     os.system("config-pin -a P9_14 pwm")
@@ -63,7 +64,7 @@ def main():
 
     GPIO.setup(startButton, GPIO.IN)
     GPIO.setup(confirmButton, GPIO.IN)
-    GPIO.setup(launchButton, GPIO.IN)
+    # GPIO.setup(launchButton, GPIO.IN)
 
     time.sleep(0.5)
 
@@ -74,6 +75,7 @@ def boom():
         cap = cv2.VideoCapture(0)
         print "Awaiting start signal"
         GPIO.wait_for_edge(startButton, GPIO.RISING)
+        GPIO.cleanup()
         distanceToTarget = scanForFace(cap)
         # distanceToTarget = 50
         # distanceToTarget = getDistanceToFace(faces)
@@ -82,7 +84,7 @@ def boom():
             angleD = getLaunchAngle(distanceToTarget)
             aim(angleD)
             clearedForLaunch = confirmLaunch()
-            launchBaby()
+            launchBaby(distanceToTarget)
             resetAngle()
     # while 1:
     #         # get a frame from RGB camera
@@ -113,6 +115,7 @@ def boom():
 def scanForFace(cap):
     while 1:
         faceCascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
+        time.sleep(1)
         ret, frame = cap.read()
         # cap.release()
         # time.sleep(0.01)
@@ -127,7 +130,10 @@ def scanForFace(cap):
             for (x, y, w, h) in faces:
                 cv2.destroyAllWindows()
                 cap.release()
-                return 146.645*math.exp(-7.207e-3*w)
+                inches = 146.645*math.exp(-7.207e-3*w)
+                print "The distance to your face is"
+                print inches*0.0254
+                return inches * 0.0254
             break
 
 def getDistanceToFace(faces):
@@ -137,7 +143,8 @@ def getDistanceToFace(faces):
     # camHeight = 480
     # halfScreen = camWidth / 2
     for (x,y,w,h) in faces:
-        return 146.645*math.exp(-7.207e-3*w)
+        inches = 146.645*math.exp(-7.207e-3*w)
+        return inches * 0.0254
 
 def confirmTarget():
     # PWM.start(targetFoundPin,50,1)
@@ -174,8 +181,40 @@ def confirmLaunch():
             # PWM.stop(launchReadyPin)
             # return False
 
-def launchBaby():
-    pass
+def launchBaby(distance):
+    # GPIO.wait_for_edge(startButton, GPIO.RISING) #no turning back
+    # GPIO.cleanup()
+    RPM = 586.5670268*math.sqrt(distance)
+    print RPM
+    dutyCycle = (0.0002114464417*RPM+0.03844561492)*100
+    dutyCycle = dutyCycle*3.5
+    dutyCycle = int(round(dutyCycle))
+    if dutyCycle > 100:
+        dutyCycle = 99
+    print dutyCycle
+    if dutyCycle <= 60:
+        PWM.start(motorPin, dutyCycle, 20000)
+    else:
+        # thing = dutyCycle-60
+        remainder = dutyCycle%10
+        tens = dutyCycle//10
+        # x = []
+        # for i in range(0,tens):
+        #     x.append(10)
+
+        for i in range(0,dutyCycle-60,10):
+            PWM.start(motorPin,60+i,20000)
+            time.sleep(1)
+            finalDutyCycle = 60+i
+        PWM.start(motorPin, finalDutyCycle+remainder, 20000)
+    # PWM.start(motorPin, dutyCycle, 20000)
+    time.sleep(5)
+    PWM.start(loaderPin, 4, 60)
+    time.sleep(3.5)
+    PWM.stop(motorPin)
+    PWM.stop(loaderPin)
+    PWM.cleanup()
+
 
 def getLaunchAngle(distance):
     #Kuza will give me the equation
@@ -202,7 +241,7 @@ def aimUp(desiredAngle):
         c = getActuatorLength()
         pos = getXY(c)
         currentAngle = getAngle(pos)
-        time.sleep(.1)
+        time.sleep(.5)
         print currentAngle
         if currentAngle >= topAngle:
             keepAiming = False
@@ -221,7 +260,7 @@ def aimDown(desiredAngle):
         c = getActuatorLength()
         pos = getXY(c)
         currentAngle = getAngle(pos)
-        time.sleep(.1)
+        time.sleep(.5)
         print currentAngle
         if currentAngle <= bottomAngle:
             keepAiming = False
