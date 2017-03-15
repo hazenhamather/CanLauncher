@@ -187,7 +187,7 @@ def launchBaby(distance):
     RPM = 586.5670268*math.sqrt(distance)
     print RPM
     dutyCycle = (0.0002114464417*RPM+0.03844561492)*100
-    dutyCycle = dutyCycle*3.5
+    dutyCycle = dutyCycle*3.5*2
     dutyCycle = int(round(dutyCycle))
     if dutyCycle > 100:
         dutyCycle = 99
